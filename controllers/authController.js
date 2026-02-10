@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { successResponse, errorResponse, validationErrorResponse } = require('../utils/response');
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -56,9 +57,7 @@ const registerUser = async (req, res) => {
     // Generate token
     const token = generateToken(user._id);
 
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
+    return successResponse(res, {
       token,
       user: {
         id: user._id,
@@ -67,15 +66,11 @@ const registerUser = async (req, res) => {
         role: user.role,
         profilePic: user.profilePic
       }
-    });
+    }, 'User registered successfully', 201);
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during registration',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error during registration', 500, error);
   }
 };
 
@@ -115,9 +110,7 @@ const loginUser = async (req, res) => {
     // Generate token
     const token = generateToken(user._id);
 
-    res.status(200).json({
-      success: true,
-      message: 'Login successful',
+    return successResponse(res, {
       token,
       user: {
         id: user._id,
@@ -126,15 +119,11 @@ const loginUser = async (req, res) => {
         role: user.role,
         profilePic: user.profilePic
       }
-    });
+    }, 'Login successful');
 
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during login',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error during login', 500, error);
   }
 };
 
@@ -152,18 +141,11 @@ const getProfile = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      user
-    });
+    return successResponse(res, { user }, 'User profile retrieved successfully');
 
   } catch (error) {
     console.error('Get profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching profile',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error fetching profile', 500, error);
   }
 };
 
@@ -190,9 +172,7 @@ const updateProfile = async (req, res) => {
 
     const updatedUser = await user.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
+    return successResponse(res, {
       user: {
         id: updatedUser._id,
         name: updatedUser.name,
@@ -200,15 +180,11 @@ const updateProfile = async (req, res) => {
         role: updatedUser.role,
         profilePic: updatedUser.profilePic
       }
-    });
+    }, 'Profile updated successfully');
 
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating profile',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error updating profile', 500, error);
   }
 };
 

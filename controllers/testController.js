@@ -1,5 +1,6 @@
 const Test = require('../models/Test');
 const User = require('../models/User');
+const { successResponse, errorResponse, paginatedResponse } = require('../utils/response');
 
 // @desc    Get all tests with advanced filtering and pagination
 // @route   GET /api/tests
@@ -69,20 +70,15 @@ const getTests = async (req, res) => {
       prevPage: hasPrevPage ? pageNumber - 1 : null
     };
 
-    res.status(200).json({
-      success: true,
+    return successResponse(res, {
       count: tests.length,
       tests,
       pagination
-    });
+    }, 'Tests retrieved successfully');
 
   } catch (error) {
     console.error('Get tests error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching tests',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error fetching tests', 500, error);
   }
 };
 
@@ -108,18 +104,11 @@ const getTest = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      test
-    });
+    return successResponse(res, { test }, 'Test retrieved successfully');
 
   } catch (error) {
     console.error('Get test error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching test',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error fetching test', 500, error);
   }
 };
 
@@ -170,19 +159,11 @@ const createTest = async (req, res) => {
 
     const populatedTest = await Test.findById(test._id).populate('createdBy', 'name');
 
-    res.status(201).json({
-      success: true,
-      message: 'Test created successfully',
-      test: populatedTest
-    });
+    return successResponse(res, { test: populatedTest }, 'Test created successfully', 201);
 
   } catch (error) {
     console.error('Create test error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error creating test',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error creating test', 500, error);
   }
 };
 
@@ -222,19 +203,11 @@ const updateTest = async (req, res) => {
     const updatedTest = await test.save();
     const populatedTest = await Test.findById(updatedTest._id).populate('createdBy', 'name');
 
-    res.status(200).json({
-      success: true,
-      message: 'Test updated successfully',
-      test: populatedTest
-    });
+    return successResponse(res, { test: populatedTest }, 'Test updated successfully');
 
   } catch (error) {
     console.error('Update test error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating test',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error updating test', 500, error);
   }
 };
 
@@ -262,18 +235,11 @@ const deleteTest = async (req, res) => {
 
     await test.remove();
 
-    res.status(200).json({
-      success: true,
-      message: 'Test deleted successfully'
-    });
+    return successResponse(res, {}, 'Test deleted successfully');
 
   } catch (error) {
     console.error('Delete test error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error deleting test',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error deleting test', 500, error);
   }
 };
 
@@ -387,9 +353,7 @@ const submitTest = async (req, res) => {
       feedback = 'Keep practicing. Review the material and try again.';
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Test submitted successfully',
+    return successResponse(res, {
       score,
       totalQuestions,
       correctAnswers,
@@ -397,15 +361,11 @@ const submitTest = async (req, res) => {
       feedback,
       answers: answerDetails,
       sectionScores
-    });
+    }, 'Test submitted successfully');
 
   } catch (error) {
     console.error('Submit test error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error submitting test',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error submitting test', 500, error);
   }
 };
 

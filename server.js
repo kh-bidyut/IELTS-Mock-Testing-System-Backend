@@ -45,10 +45,26 @@ app.use('/api/auth', authLimiter);
 app.use('/api/', generalLimiter);
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
-}));
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : [process.env.CLIENT_URL || 'http://localhost:5173'];
+
+const corsOptions = {
+  origin: allowedOrigins,
+  credentials: true,
+  optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin', 
+    'X-Requested-With', 
+    'Content-Type', 
+    'Accept', 
+    'Authorization',
+    'Access-Control-Allow-Credentials',
+    'X-CSRF-Token'
+  ]
+};
+app.use(cors(corsOptions));
 
 // Logging
 app.use(morgan('combined'));
@@ -93,10 +109,8 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
-  });
+  const { notFoundResponse } = require('./utils/response');
+  notFoundResponse(res, 'Route not found');
 });
 
 app.listen(PORT, () => {

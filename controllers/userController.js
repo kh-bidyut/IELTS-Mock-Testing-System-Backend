@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Test = require('../models/Test');
+const { successResponse, errorResponse, paginatedResponse } = require('../utils/response');
 
 // @desc    Get all users with pagination (admin only)
 // @route   GET /api/users
@@ -64,20 +65,15 @@ const getUsers = async (req, res) => {
       prevPage: hasPrevPage ? pageNumber - 1 : null
     };
 
-    res.status(200).json({
-      success: true,
+    return successResponse(res, {
       count: users.length,
       users,
       pagination
-    });
+    }, 'Users retrieved successfully');
 
   } catch (error) {
     console.error('Get users error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching users',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error fetching users', 500, error);
   }
 };
 
@@ -115,19 +111,14 @@ const getUserAttempts = async (req, res) => {
       });
     });
 
-    res.status(200).json({
-      success: true,
+    return successResponse(res, {
       count: allAttempts.length,
       attempts: allAttempts
-    });
+    }, 'User attempts retrieved successfully');
 
   } catch (error) {
     console.error('Get user attempts error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching user attempts',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error fetching user attempts', 500, error);
   }
 };
 
@@ -158,8 +149,7 @@ const getUserStats = async (req, res) => {
       { $group: { _id: null, total: { $sum: '$attemptCount' } } }
     ]);
 
-    res.status(200).json({
-      success: true,
+    return successResponse(res, {
       stats: {
         totalUsers,
         adminUsers,
@@ -168,15 +158,11 @@ const getUserStats = async (req, res) => {
         usersWithAttempts,
         totalAttempts: totalAttempts[0]?.total || 0
       }
-    });
+    }, 'User statistics retrieved successfully');
 
   } catch (error) {
     console.error('Get user stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching user statistics',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error fetching user statistics', 500, error);
   }
 };
 
@@ -189,19 +175,14 @@ const getMyAttempts = async (req, res) => {
       .populate('testAttempts.testId', 'title section difficulty')
       .select('testAttempts');
 
-    res.status(200).json({
-      success: true,
+    return successResponse(res, {
       count: user.testAttempts.length,
       attempts: user.testAttempts
-    });
+    }, 'Your attempts retrieved successfully');
 
   } catch (error) {
     console.error('Get my attempts error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching your attempts',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
+    return errorResponse(res, 'Server error fetching your attempts', 500, error);
   }
 };
 
