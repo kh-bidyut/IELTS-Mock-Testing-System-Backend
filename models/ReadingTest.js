@@ -1,36 +1,26 @@
 const mongoose = require('mongoose');
 
-// Reading Tests Collection Schema
 const readingTestSchema = new mongoose.Schema({
   testId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Test',
-    required: true
+    required: true,
+    unique: true
   },
-  timeLimit: {
+  time: {
     type: Number,
     default: 60 // minutes
   },
   passages: [{
-    passageNumber: {
-      type: Number,
-      required: true
-    },
     title: {
       type: String,
       required: true
     },
-    content: {
+    text: {
       type: String,
       required: true
     },
-    wordCount: {
-      type: Number
-    },
-    estimatedReadingTime: {
-      type: Number // in minutes
-    },
-    questionIds: [{
+    questions: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Question'
     }]
@@ -44,15 +34,34 @@ const readingTestSchema = new mongoose.Schema({
     enum: ['Academic', 'General'],
     default: 'Academic'
   },
-  bandScoreConversion: {
-    type: Map,
-    of: Number,
-    default: {}
+  instructions: {
+    type: String,
+    default: 'You will be given a number of texts to read and a number of questions to answer based on the information in the texts.'
   },
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
 });
+
+// Update updatedAt before saving
+readingTestSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+// Get total questions count
+readingTestSchema.virtual('questionCount').get(function() {
+  return this.passages.reduce((total, passage) => total + (passage.questions?.length || 0), 0);
+});
+
+// Get passage by index
+readingTestSchema.methods.getPassage = function(index) {
+  return this.passages[index];
+};
 
 module.exports = mongoose.model('ReadingTest', readingTestSchema);

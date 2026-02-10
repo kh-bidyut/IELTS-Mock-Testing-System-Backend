@@ -1,60 +1,60 @@
 const mongoose = require('mongoose');
 
-// Speaking Tests Collection Schema
 const speakingTestSchema = new mongoose.Schema({
   testId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Test',
-    required: true
+    required: true,
+    unique: true
   },
   parts: [{
-    partNumber: {
+    part: {
       type: Number,
       required: true,
       enum: [1, 2, 3]
     },
-    title: {
-      type: String,
-      required: true
-    },
-    description: {
-      type: String
-    },
     questions: [{
       type: String
     }],
-    cueCard: {
-      topic: {
-        type: String
-      },
-      points: [{
-        type: String
-      }],
-      preparationTime: {
-        type: Number, // in seconds
-        default: 60
-      },
-      speakingTime: {
-        type: Number, // in seconds
-        default: 120
-      }
+    cue: {
+      type: String
     },
-    timeLimit: {
-      type: Number // in minutes
-    }
+    points: [{
+      type: String
+    }]
   }],
-  totalParts: {
-    type: Number,
-    default: 3
-  },
   totalTime: {
     type: Number, // in minutes
     default: 15
   },
+  instructions: {
+    type: String,
+    default: 'You will have a face-to-face interview with an examiner. The test consists of three parts with different question types.'
+  },
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
+});
+
+// Update updatedAt before saving
+speakingTestSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+// Get part by number
+speakingTestSchema.methods.getPart = function(partNumber) {
+  return this.parts.find(part => part.part === partNumber);
+};
+
+// Get total questions count
+speakingTestSchema.virtual('questionCount').get(function() {
+  return this.parts.reduce((total, part) => total + (part.questions?.length || 0), 0);
 });
 
 module.exports = mongoose.model('SpeakingTest', speakingTestSchema);

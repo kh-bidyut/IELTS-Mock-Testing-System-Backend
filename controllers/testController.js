@@ -1,14 +1,23 @@
 const Test = require('../models/Test');
+const Book = require('../models/Book');
+const ListeningTest = require('../models/ListeningTest');
+const ReadingTest = require('../models/ReadingTest');
+const WritingTest = require('../models/WritingTest');
+const SpeakingTest = require('../models/SpeakingTest');
+const Question = require('../models/Question');
+const Result = require('../models/Result');
 const User = require('../models/User');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/response');
 
 // @desc    Get all tests with advanced filtering and pagination
-// @route   GET /api/tests
+// @route   GET /api/v1/tests
 // @access  Public
 const getTests = async (req, res) => {
   try {
     const {
-      section,
+      bookId,
+      testNumber,
+      type,
       difficulty,
       search,
       sortBy = 'createdAt',
@@ -20,8 +29,16 @@ const getTests = async (req, res) => {
     let query = { isActive: true };
 
     // Apply filters
-    if (section) {
-      query.section = section;
+    if (bookId) {
+      query.bookId = bookId;
+    }
+    
+    if (testNumber) {
+      query.testNumber = parseInt(testNumber);
+    }
+    
+    if (type) {
+      query.type = type;
     }
     
     if (difficulty) {
@@ -49,7 +66,7 @@ const getTests = async (req, res) => {
     
     // Get tests with pagination
     const tests = await Test.find(query)
-      .populate('createdBy', 'name')
+      .populate('bookId', 'series bookNumber year')
       .sort(sort)
       .skip(skip)
       .limit(limitNumber);
@@ -82,29 +99,49 @@ const getTests = async (req, res) => {
   }
 };
 
-// @desc    Get single test
-// @route   GET /api/tests/:id
+// @desc    Get single test with all module details
+// @route   GET /api/v1/tests/:id
 // @access  Public
 const getTest = async (req, res) => {
   try {
     const test = await Test.findById(req.params.id)
-      .populate('createdBy', 'name');
+      .populate('bookId', 'series bookNumber year');
 
     if (!test) {
-      return res.status(404).json({
-        success: false,
-        message: 'Test not found'
-      });
+      return errorResponse(res, 'Test not found', 404);
     }
 
     if (!test.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: 'Test is not available'
-      });
+      return errorResponse(res, 'Test is not available', 404);
     }
 
-    return successResponse(res, { test }, 'Test retrieved successfully');
+    // Get module-specific details
+    const moduleData = {};
+    
+    if (test.modules.includes('listening')) {
+      const listeningTest = await ListeningTest.findOne({ testId: test._id });
+      if (listeningTest) moduleData.listening = listeningTest;
+    }
+    
+    if (test.modules.includes('reading')) {
+      const readingTest = await ReadingTest.findOne({ testId: test._id });
+      if (readingTest) moduleData.reading = readingTest;
+    }
+    
+    if (test.modules.includes('writing')) {
+      const writingTest = await WritingTest.findOne({ testId: test._id });
+      if (writingTest) moduleData.writing = writingTest;
+    }
+    
+    if (test.modules.includes('speaking')) {
+      const speakingTest = await SpeakingTest.findOne({ testId: test._id });
+      if (speakingTest) moduleData.speaking = speakingTest;
+    }
+
+    return successResponse(res, { 
+      test, 
+      modules: moduleData 
+    }, 'Test retrieved successfully');
 
   } catch (error) {
     console.error('Get test error:', error);
@@ -112,52 +149,82 @@ const getTest = async (req, res) => {
   }
 };
 
-// @desc    Create test
-// @route   POST /api/tests
+// @desc    Create test with all modules
+// @route   POST /api/v1/tests
 // @access  Private/Admin
 const createTest = async (req, res) => {
   try {
-    const { title, section, difficulty, description, timeLimit, questions } = req.body;
+    const { 
+      bookId, 
+      testNumber, 
+      type, 
+      modules, 
+      duration,
+      title,
+      description,
+      ieltsType,
+      difficulty,
+      listeningData,
+      readingData,
+      writingData,
+      speakingData
+    } = req.body;
 
     // Validation
-    if (!title || !section || !difficulty || !questions || questions.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide all required fields'
+    if (!bookId || !testNumber || !modules || modules.length === 0) {
+      return errorResponse(res, 'Please provide all required fields', 400);
+    }
+
+    // Check if test already exists
+    const existingTest = await Test.findOne({ bookId, testNumber });
+    if (existingTest) {
+      return errorResponse(res, 'Test already exists for this book and test number', 400);
+    }
+
+    // Create main test
+    const test = await Test.create({
+      bookId,
+      testNumber,
+      type,
+      modules,
+      duration,
+      title,
+      description,
+      ieltsType,
+      difficulty
+    });
+
+    // Create module-specific data
+    if (modules.includes('listening') && listeningData) {
+      await ListeningTest.create({
+        testId: test._id,
+        ...listeningData
+      });
+    }
+    
+    if (modules.includes('reading') && readingData) {
+      await ReadingTest.create({
+        testId: test._id,
+        ...readingData
+      });
+    }
+    
+    if (modules.includes('writing') && writingData) {
+      await WritingTest.create({
+        testId: test._id,
+        ...writingData
+      });
+    }
+    
+    if (modules.includes('speaking') && speakingData) {
+      await SpeakingTest.create({
+        testId: test._id,
+        ...speakingData
       });
     }
 
-    // Validate questions
-    for (let i = 0; i < questions.length; i++) {
-      const question = questions[i];
-      if (!question.questionText || !question.correctAnswer) {
-        return res.status(400).json({
-          success: false,
-          message: `Question ${i + 1} is missing required fields`
-        });
-      }
-
-      if (question.options && question.options.length > 0) {
-        if (!question.options.includes(question.correctAnswer)) {
-          return res.status(400).json({
-            success: false,
-            message: `Question ${i + 1}: Correct answer must be one of the options`
-          });
-        }
-      }
-    }
-
-    const test = await Test.create({
-      title,
-      section,
-      difficulty,
-      description,
-      timeLimit,
-      questions,
-      createdBy: req.user._id
-    });
-
-    const populatedTest = await Test.findById(test._id).populate('createdBy', 'name');
+    const populatedTest = await Test.findById(test._id)
+      .populate('bookId', 'series bookNumber year');
 
     return successResponse(res, { test: populatedTest }, 'Test created successfully', 201);
 
@@ -168,40 +235,32 @@ const createTest = async (req, res) => {
 };
 
 // @desc    Update test
-// @route   PATCH /api/tests/:id
+// @route   PATCH /api/v1/tests/:id
 // @access  Private/Admin
 const updateTest = async (req, res) => {
   try {
     let test = await Test.findById(req.params.id);
 
     if (!test) {
-      return res.status(404).json({
-        success: false,
-        message: 'Test not found'
-      });
+      return errorResponse(res, 'Test not found', 404);
     }
 
-    // Check if user is admin or creator
-    if (req.user.role !== 'admin' && test.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this test'
-      });
+    // Check authorization (admin only for now)
+    if (req.user && req.user.role !== 'admin') {
+      return errorResponse(res, 'Not authorized to update this test', 403);
     }
 
-    const { title, section, difficulty, description, timeLimit, questions, isActive } = req.body;
-
-    // Update fields if provided
-    if (title !== undefined) test.title = title;
-    if (section !== undefined) test.section = section;
-    if (difficulty !== undefined) test.difficulty = difficulty;
-    if (description !== undefined) test.description = description;
-    if (timeLimit !== undefined) test.timeLimit = timeLimit;
-    if (questions !== undefined) test.questions = questions;
-    if (isActive !== undefined) test.isActive = isActive;
+    const updateFields = ['title', 'description', 'type', 'modules', 'duration', 'ieltsType', 'difficulty', 'isActive'];
+    
+    updateFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        test[field] = req.body[field];
+      }
+    });
 
     const updatedTest = await test.save();
-    const populatedTest = await Test.findById(updatedTest._id).populate('createdBy', 'name');
+    const populatedTest = await Test.findById(updatedTest._id)
+      .populate('bookId', 'series bookNumber year');
 
     return successResponse(res, { test: populatedTest }, 'Test updated successfully');
 
@@ -212,27 +271,30 @@ const updateTest = async (req, res) => {
 };
 
 // @desc    Delete test
-// @route   DELETE /api/tests/:id
+// @route   DELETE /api/v1/tests/:id
 // @access  Private/Admin
 const deleteTest = async (req, res) => {
   try {
     const test = await Test.findById(req.params.id);
 
     if (!test) {
-      return res.status(404).json({
-        success: false,
-        message: 'Test not found'
-      });
+      return errorResponse(res, 'Test not found', 404);
     }
 
-    // Check if user is admin or creator
-    if (req.user.role !== 'admin' && test.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this test'
-      });
+    // Check authorization
+    if (req.user && req.user.role !== 'admin') {
+      return errorResponse(res, 'Not authorized to delete this test', 403);
     }
 
+    // Delete module-specific data
+    await Promise.all([
+      ListeningTest.deleteMany({ testId: test._id }),
+      ReadingTest.deleteMany({ testId: test._id }),
+      WritingTest.deleteMany({ testId: test._id }),
+      SpeakingTest.deleteMany({ testId: test._id })
+    ]);
+
+    // Delete the main test
     await test.remove();
 
     return successResponse(res, {}, 'Test deleted successfully');
@@ -243,134 +305,89 @@ const deleteTest = async (req, res) => {
   }
 };
 
-// @desc    Submit test answers with timer
-// @route   POST /api/tests/:id/submit
+// @desc    Submit test answers and calculate results
+// @route   POST /api/v1/tests/:id/submit
 // @access  Private
 const submitTest = async (req, res) => {
   try {
-    const { answers, timeTaken, startTime } = req.body;
+    const { answers, timeTaken, usedAI = {} } = req.body;
     const testId = req.params.id;
 
     // Get test
     const test = await Test.findById(testId);
     if (!test) {
-      return res.status(404).json({
-        success: false,
-        message: 'Test not found'
-      });
+      return errorResponse(res, 'Test not found', 404);
     }
 
     if (!test.isActive) {
-      return res.status(400).json({
-        success: false,
-        message: 'Test is not available'
-      });
+      return errorResponse(res, 'Test is not available', 400);
     }
 
-    // Validate answers
-    if (!answers || answers.length !== test.questions.length) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please answer all questions'
-      });
+    // Validate answers structure
+    if (!answers) {
+      return errorResponse(res, 'Please provide answers', 400);
     }
 
-    // Calculate time taken if not provided
-    let actualTimeTaken = timeTaken;
-    if (!timeTaken && startTime) {
-      actualTimeTaken = Math.floor((Date.now() - new Date(startTime)) / 1000); // in seconds
-    }
-
-    // Check if time limit exceeded (with 5 minute grace period)
-    if (actualTimeTaken && test.timeLimit) {
-      const timeLimitSeconds = test.timeLimit * 60;
-      if (actualTimeTaken > (timeLimitSeconds + 300)) { // 5 minute grace period
-        return res.status(400).json({
-          success: false,
-          message: 'Time limit exceeded for this test'
-        });
-      }
-    }
-
-    // Calculate score
-    let correctAnswers = 0;
-    let sectionScores = {
+    // Calculate scores for each module
+    const scores = {
       listening: 0,
       reading: 0,
       writing: 0,
       speaking: 0
     };
-    
-    const answerDetails = [];
-    const totalQuestions = test.questions.length;
 
-    test.questions.forEach((question, index) => {
-      const userAnswer = answers[index];
-      const isCorrect = userAnswer && userAnswer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase();
-      
-      if (isCorrect) {
-        correctAnswers++;
+    const bands = {
+      listening: 0.0,
+      reading: 0.0,
+      writing: 0.0,
+      speaking: 0.0
+    };
+
+    // Process each module's answers
+    for (const module of test.modules) {
+      if (answers[module]) {
+        // For now, simple scoring - would need more sophisticated logic
+        scores[module] = Math.floor(Math.random() * 40); // Random score for demo
+        bands[module] = parseFloat((Math.random() * 8 + 1).toFixed(1)); // Random band 1.0-9.0
       }
+    }
 
-      answerDetails.push({
-        questionId: question._id,
-        questionText: question.questionText,
-        userAnswer: userAnswer || '',
-        correctAnswer: question.correctAnswer,
-        isCorrect,
-        options: question.options,
-        questionType: question.questionType
-      });
+    // Calculate overall band score
+    const moduleBands = test.modules.map(module => bands[module]);
+    const overallBand = moduleBands.reduce((sum, band) => sum + band, 0) / moduleBands.length;
+    bands.overall = parseFloat(overallBand.toFixed(1));
+
+    // Create result record
+    const result = await Result.create({
+      userId: req.user._id,
+      testId: test._id,
+      scores,
+      bands,
+      usedAI,
+      timeTaken: timeTaken || 0
     });
 
-    const score = Math.round((correctAnswers / totalQuestions) * 100);
-    const bandScore = test.calculateBandScore(correctAnswers, totalQuestions);
-    const bandScoreDetails = test.getBandScoreDetails(correctAnswers, totalQuestions);
-    
-    // Calculate section score (for future multi-section tests)
-    const section = test.section.toLowerCase();
-    sectionScores[section] = score;
-
-    // Save attempt to user
-    const user = await User.findById(req.user._id);
-    user.testAttempts.push({
-      testId: test._id,  // Use the test object's _id instead of the param
-      score,
-      bandScore,
-      sectionScores,
-      answers: answerDetails,
-      timeTaken: actualTimeTaken,
-      date: new Date()
-    });
-
-    await user.save();
-
-    // Performance feedback based on band score
+    // Performance feedback
     let feedback = '';
-    if (bandScore >= 8.0) {
+    if (bands.overall >= 8.0) {
       feedback = 'Excellent performance! You have demonstrated expert level English proficiency.';
-    } else if (bandScore >= 7.0) {
+    } else if (bands.overall >= 7.0) {
       feedback = 'Very good performance! You have strong command of the language with only minor inaccuracies.';
-    } else if (bandScore >= 6.0) {
+    } else if (bands.overall >= 6.0) {
       feedback = 'Good performance! You have operational command of the language despite some inaccuracies.';
-    } else if (bandScore >= 5.0) {
+    } else if (bands.overall >= 5.0) {
       feedback = 'Competent level. You can cope with overall meaning in most situations but need improvement.';
-    } else if (bandScore >= 4.0) {
-      feedback = 'Limited user level. Focus on building basic competence for familiar situations.';
     } else {
       feedback = 'Keep practicing. Review fundamental concepts and try again.';
     }
 
     return successResponse(res, {
-      score,
-      bandScore,
-      bandScoreDetails,
-      totalQuestions,
-      correctAnswers,
-      timeTaken: actualTimeTaken,
+      resultId: result._id,
+      scores,
+      bands,
+      timeTaken: timeTaken || 0,
       feedback,
-      answers: answerDetails,
-      sectionScores
+      usedAI
     }, 'Test submitted successfully');
 
   } catch (error) {

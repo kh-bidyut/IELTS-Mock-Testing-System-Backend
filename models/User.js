@@ -27,6 +27,42 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
+  level: {
+    type: String,
+    enum: ['beginner', 'intermediate', 'advanced'],
+    default: 'beginner'
+  },
+  targetBand: {
+    type: Number,
+    min: 1,
+    max: 9,
+    default: 6
+  },
+  plan: {
+    type: {
+      type: String,
+      enum: ['free', 'premium', 'enterprise'],
+      default: 'free'
+    },
+    expiresAt: {
+      type: Date,
+      default: null
+    }
+  },
+  limits: {
+    dailyMockTests: {
+      type: Number,
+      default: 1
+    },
+    aiWritingChecks: {
+      type: Number,
+      default: 0
+    },
+    aiSpeakingChecks: {
+      type: Number,
+      default: 0
+    }
+  },
   profilePic: {
     type: String,
     default: ''
@@ -35,36 +71,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  testAttempts: [
-    {
-      testId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Test',
-        required: true
-      },
-      score: {
-        type: Number,
-        required: true,
-        min: 0,
-        max: 100
-      },
-      sectionScores: {
-        listening: { type: Number, min: 0, max: 100 },
-        reading: { type: Number, min: 0, max: 100 },
-        writing: { type: Number, min: 0, max: 100 },
-        speaking: { type: Number, min: 0, max: 100 }
-      },
-      answers: [{
-        questionId: mongoose.Schema.Types.ObjectId,
-        answer: String,
-        isCorrect: Boolean
-      }],
-      date: {
-        type: Date,
-        default: Date.now
-      }
-    }
-  ],
+  lastLogin: {
+    type: Date,
+    default: Date.now
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -99,44 +109,19 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Get user statistics
-userSchema.methods.getStats = function() {
-  const attempts = this.testAttempts;
-  if (attempts.length === 0) return null;
+// Check if user has active premium plan
+userSchema.methods.hasActivePlan = function() {
+  if (this.plan.type === 'free') return false;
+  if (!this.plan.expiresAt) return true; // Lifetime premium
+  return this.plan.expiresAt > new Date();
+};
 
-  const totalAttempts = attempts.length;
-  const averageScore = attempts.reduce((sum, attempt) => sum + attempt.score, 0) / totalAttempts;
-  
-  // Calculate section-wise averages
-  const sectionScores = {
-    listening: [],
-    reading: [],
-    writing: [],
-    speaking: []
-  };
-
-  attempts.forEach(attempt => {
-    if (attempt.sectionScores) {
-      Object.keys(sectionScores).forEach(section => {
-        if (attempt.sectionScores[section] !== undefined) {
-          sectionScores[section].push(attempt.sectionScores[section]);
-        }
-      });
-    }
-  });
-
-  const sectionAverages = {};
-  Object.keys(sectionScores).forEach(section => {
-    if (sectionScores[section].length > 0) {
-      sectionAverages[section] = sectionScores[section].reduce((a, b) => a + b, 0) / sectionScores[section].length;
-    }
-  });
-
+// Get user's remaining daily limits
+userSchema.methods.getRemainingLimits = function(dailyUsage) {
   return {
-    totalAttempts,
-    averageScore: Math.round(averageScore),
-    sectionAverages,
-    recentAttempts: attempts.slice(-5).reverse()
+    mockTests: Math.max(0, this.limits.dailyMockTests - (dailyUsage?.mockTests || 0)),
+    aiWriting: Math.max(0, this.limits.aiWritingChecks - (dailyUsage?.aiWriting || 0)),
+    aiSpeaking: Math.max(0, this.limits.aiSpeakingChecks - (dailyUsage?.aiSpeaking || 0))
   };
 };
 

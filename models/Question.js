@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-// Central Question Bank Schema
 const questionSchema = new mongoose.Schema({
   module: {
     type: String,
@@ -65,7 +64,27 @@ const questionSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
+});
+
+// Update updatedAt before saving
+questionSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+// Check if question is multiple choice
+questionSchema.virtual('isMCQ').get(function() {
+  return this.type === 'mcq';
+});
+
+// Check if question requires written response
+questionSchema.virtual('isWritten').get(function() {
+  return ['short_answer', 'essay', 'report', 'letter', 'discussion'].includes(this.type);
 });
 
 module.exports = mongoose.model('Question', questionSchema);

@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-// Results Collection Schema
 const resultSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -12,41 +11,6 @@ const resultSchema = new mongoose.Schema({
     ref: 'Test',
     required: true
   },
-  answers: {
-    listening: {
-      type: Map,
-      of: String,
-      default: {}
-    },
-    reading: {
-      type: Map,
-      of: String,
-      default: {}
-    },
-    writing: {
-      task1: {
-        type: String,
-        default: ''
-      },
-      task2: {
-        type: String,
-        default: ''
-      }
-    },
-    speaking: {
-      part1: [{
-        question: String,
-        answer: String
-      }],
-      part2: {
-        response: String
-      },
-      part3: [{
-        question: String,
-        answer: String
-      }]
-    }
-  },
   scores: {
     listening: {
       type: Number,
@@ -57,14 +21,8 @@ const resultSchema = new mongoose.Schema({
       default: 0
     },
     writing: {
-      task1: {
-        type: Number,
-        default: 0
-      },
-      task2: {
-        type: Number,
-        default: 0
-      }
+      type: Number,
+      default: 0
     },
     speaking: {
       type: Number,
@@ -93,25 +51,52 @@ const resultSchema = new mongoose.Schema({
       default: 0.0
     }
   },
-  timeTaken: {
-    listening: {
-      type: Number // in seconds
-    },
-    reading: {
-      type: Number // in seconds
-    },
+  usedAI: {
     writing: {
-      task1: Number, // in seconds
-      task2: Number  // in seconds
+      type: Boolean,
+      default: false
     },
     speaking: {
-      type: Number // in seconds
+      type: Boolean,
+      default: false
     }
+  },
+  timeTaken: {
+    type: Number // total time in seconds
   },
   submittedAt: {
     type: Date,
     default: Date.now
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
+});
+
+// Compound index for user and test
+resultSchema.index({ userId: 1, testId: 1 }, { unique: true });
+
+// Update updatedAt before saving
+resultSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+// Calculate overall band score
+resultSchema.virtual('overallBand').get(function() {
+  const moduleBands = [this.bands.listening, this.bands.reading, this.bands.writing, this.bands.speaking];
+  const sum = moduleBands.reduce((acc, band) => acc + band, 0);
+  return Math.round((sum / 4) * 2) / 2; // Round to nearest 0.5
+});
+
+// Check if result includes AI assistance
+resultSchema.virtual('hasAIUsage').get(function() {
+  return this.usedAI.writing || this.usedAI.speaking;
 });
 
 module.exports = mongoose.model('Result', resultSchema);
