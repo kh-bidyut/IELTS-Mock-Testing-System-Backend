@@ -147,13 +147,15 @@ const ieltsSampleTests = [
         correctAnswer: 'Climate change',
         media: 'https://example.com/sample-lecture.mp3',
         mediaType: 'audio',
-        questionType: 'listening-mcq'
+        questionType: 'listening-mcq',
+        listeningQuestionType: 'multiple-choice'
       },
       {
         questionText: 'According to the lecturer, what percentage of scientists agree on human-caused global warming?',
         options: ['75%', '85%', '95%', '99%'],
         correctAnswer: '95%',
-        questionType: 'listening-mcq'
+        questionType: 'listening-mcq',
+        listeningQuestionType: 'multiple-choice'
       }
     ]
   },
@@ -171,8 +173,46 @@ const ieltsSampleTests = [
         options: ['Ocean pollution', 'Rising sea temperatures', 'Overfishing', 'Coastal development'],
         correctAnswer: 'Rising sea temperatures',
         questionType: 'reading-mcq',
-        media: 'https://example.com/sample-passage.pdf',
-        mediaType: 'document'
+        readingQuestionType: 'multiple-choice'
+      },
+      {
+        questionText: 'Complete the sentence: The Great Barrier Reef is located off the coast of...',
+        correctAnswer: 'Australia',
+        questionType: 'reading-short-answer',
+        readingQuestionType: 'short-answer',
+        maxAnswerLength: 50
+      }
+    ]
+  },
+
+  // IELTS Reading - True/False/Not Given
+  {
+    title: 'IELTS Reading: True/False/Not Given Practice',
+    section: 'Reading',
+    difficulty: 'Advanced',
+    description: 'Read the passage and answer True, False, or Not Given for each statement.',
+    timeLimit: 40,
+    questions: [
+      {
+        questionText: 'The passage states that climate change is caused by human activity.',
+        correctAnswer: 'True',
+        questionType: 'reading-true-false',
+        readingQuestionType: 'true-false-not-given',
+        trueFalseType: 'true-false-not-given'
+      },
+      {
+        questionText: 'The passage mentions that polar bears are thriving in the current climate.',
+        correctAnswer: 'False',
+        questionType: 'reading-true-false',
+        readingQuestionType: 'true-false-not-given',
+        trueFalseType: 'true-false-not-given'
+      },
+      {
+        questionText: 'The passage discusses the economic impact of renewable energy.',
+        correctAnswer: 'Not Given',
+        questionType: 'reading-true-false',
+        readingQuestionType: 'true-false-not-given',
+        trueFalseType: 'true-false-not-given'
       }
     ]
   }

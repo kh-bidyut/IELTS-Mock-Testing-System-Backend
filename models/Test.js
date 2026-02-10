@@ -27,8 +27,14 @@ const questionSchema = new mongoose.Schema({
   // IELTS-specific fields
   questionType: {
     type: String,
-    enum: ['mcq', 'text', 'speaking', 'writing-task1', 'writing-task2', 'listening-mcq', 'reading-mcq'],
+    enum: ['mcq', 'text', 'speaking', 'writing-task1', 'writing-task2', 'listening-mcq', 'reading-mcq', 'reading-gap-fill', 'reading-true-false', 'reading-match-headings', 'reading-short-answer'],
     default: 'mcq'
+  },
+  // For Reading section - passage association
+  passageId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Passage',
+    default: null
   },
   // For Writing Task 1 - Academic/General Training
   writingTaskType: {
@@ -42,6 +48,18 @@ const questionSchema = new mongoose.Schema({
     enum: [1, 2, 3],
     default: null
   },
+  // For Reading question types
+  readingQuestionType: {
+    type: String,
+    enum: ['multiple-choice', 'true-false-not-given', 'yes-no-not-given', 'matching', 'sentence-completion', 'short-answer', 'summary-completion', 'list-selection', 'classification', 'note-completion', 'table-completion', 'flow-chart-completion', 'diagram-label-completion', 'paragraph-headings'],
+    default: null
+  },
+  // For Listening question types
+  listeningQuestionType: {
+    type: String,
+    enum: ['multiple-choice', 'sentence-completion', 'short-answer', 'form-completion', 'note-completion', 'table-completion', 'flow-chart-completion', 'summary-completion', 'map-completion', 'diagram-label-completion'],
+    default: null
+  },
   // Minimum word count requirement
   minWordCount: {
     type: Number,
@@ -52,7 +70,18 @@ const questionSchema = new mongoose.Schema({
     type: Map,
     of: String,
     default: {}
-  }
+  },
+  // For True/False/Not Given questions
+  trueFalseType: {
+    type: String,
+    enum: ['true-false-not-given', 'yes-no-not-given'],
+    default: null
+  },
+  // For gap fill questions
+  gapFillOptions: [{
+    type: String,
+    trim: true
+  }]
 });
 
 const testSchema = new mongoose.Schema({
