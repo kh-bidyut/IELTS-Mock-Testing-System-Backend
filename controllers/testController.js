@@ -331,7 +331,7 @@ const submitTest = async (req, res) => {
     // Save attempt to user
     const user = await User.findById(req.user._id);
     user.testAttempts.push({
-      testId,
+      testId: test._id,  // Use the test object's _id instead of the param
       score,
       sectionScores,
       answers: answerDetails,
