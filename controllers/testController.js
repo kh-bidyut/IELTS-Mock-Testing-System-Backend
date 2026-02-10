@@ -1,12 +1,20 @@
 const Test = require('../models/Test');
 const User = require('../models/User');
 
-// @desc    Get all tests
+// @desc    Get all tests with advanced filtering and pagination
 // @route   GET /api/tests
 // @access  Public
 const getTests = async (req, res) => {
   try {
-    const { section, difficulty, search } = req.query;
+    const {
+      section,
+      difficulty,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = 1,
+      limit = 10
+    } = req.query;
     
     let query = { isActive: true };
 
@@ -26,14 +34,46 @@ const getTests = async (req, res) => {
       ];
     }
 
+    // Build sort object
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Calculate pagination
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Get total count for pagination
+    const total = await Test.countDocuments(query);
+    
+    // Get tests with pagination
     const tests = await Test.find(query)
       .populate('createdBy', 'name')
-      .sort({ createdAt: -1 });
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNumber);
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(total / limitNumber);
+    const hasNextPage = pageNumber < totalPages;
+    const hasPrevPage = pageNumber > 1;
+
+    const pagination = {
+      currentPage: pageNumber,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limitNumber,
+      hasNextPage,
+      hasPrevPage,
+      nextPage: hasNextPage ? pageNumber + 1 : null,
+      prevPage: hasPrevPage ? pageNumber - 1 : null
+    };
 
     res.status(200).json({
       success: true,
       count: tests.length,
-      tests
+      tests,
+      pagination
     });
 
   } catch (error) {
@@ -237,12 +277,12 @@ const deleteTest = async (req, res) => {
   }
 };
 
-// @desc    Submit test answers
+// @desc    Submit test answers with timer
 // @route   POST /api/tests/:id/submit
 // @access  Private
 const submitTest = async (req, res) => {
   try {
-    const { answers } = req.body;
+    const { answers, timeTaken, startTime } = req.body;
     const testId = req.params.id;
 
     // Get test
@@ -269,13 +309,38 @@ const submitTest = async (req, res) => {
       });
     }
 
+    // Calculate time taken if not provided
+    let actualTimeTaken = timeTaken;
+    if (!timeTaken && startTime) {
+      actualTimeTaken = Math.floor((Date.now() - new Date(startTime)) / 1000); // in seconds
+    }
+
+    // Check if time limit exceeded (with 5 minute grace period)
+    if (actualTimeTaken && test.timeLimit) {
+      const timeLimitSeconds = test.timeLimit * 60;
+      if (actualTimeTaken > (timeLimitSeconds + 300)) { // 5 minute grace period
+        return res.status(400).json({
+          success: false,
+          message: 'Time limit exceeded for this test'
+        });
+      }
+    }
+
     // Calculate score
     let correctAnswers = 0;
+    let sectionScores = {
+      listening: 0,
+      reading: 0,
+      writing: 0,
+      speaking: 0
+    };
+    
     const answerDetails = [];
+    const totalQuestions = test.questions.length;
 
     test.questions.forEach((question, index) => {
       const userAnswer = answers[index];
-      const isCorrect = userAnswer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase();
+      const isCorrect = userAnswer && userAnswer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase();
       
       if (isCorrect) {
         correctAnswers++;
@@ -283,31 +348,55 @@ const submitTest = async (req, res) => {
 
       answerDetails.push({
         questionId: question._id,
-        answer: userAnswer,
-        isCorrect
+        questionText: question.questionText,
+        userAnswer: userAnswer || '',
+        correctAnswer: question.correctAnswer,
+        isCorrect,
+        options: question.options
       });
     });
 
-    const score = Math.round((correctAnswers / test.questions.length) * 100);
+    const score = Math.round((correctAnswers / totalQuestions) * 100);
+    
+    // Calculate section score (for future multi-section tests)
+    const section = test.section.toLowerCase();
+    sectionScores[section] = score;
 
     // Save attempt to user
     const user = await User.findById(req.user._id);
     user.testAttempts.push({
       testId,
       score,
+      sectionScores,
       answers: answerDetails,
+      timeTaken: actualTimeTaken,
       date: new Date()
     });
 
     await user.save();
 
+    // Performance feedback
+    let feedback = '';
+    if (score >= 80) {
+      feedback = 'Excellent performance! Keep up the great work.';
+    } else if (score >= 60) {
+      feedback = 'Good job! With more practice, you can achieve even better results.';
+    } else if (score >= 40) {
+      feedback = 'Fair attempt. Focus on improving your weaker areas.';
+    } else {
+      feedback = 'Keep practicing. Review the material and try again.';
+    }
+
     res.status(200).json({
       success: true,
       message: 'Test submitted successfully',
       score,
-      totalQuestions: test.questions.length,
+      totalQuestions,
       correctAnswers,
-      answers: answerDetails
+      timeTaken: actualTimeTaken,
+      feedback,
+      answers: answerDetails,
+      sectionScores
     });
 
   } catch (error) {

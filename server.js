@@ -5,20 +5,55 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
+// Security middleware
+const { 
+  xssProtection, 
+  hppProtection, 
+  mongoSanitizeProtection, 
+  cspHeaders, 
+  securityHeaders 
+} = require('./middleware/security');
+
+// Rate limiting
+const { generalLimiter, authLimiter } = require('./middleware/rateLimiter');
+
+// Utility functions
+const { ensureUploadsDir } = require('./utils/fileUpload');
+
 const authRoutes = require('./routes/auth');
 const testRoutes = require('./routes/tests');
 const userRoutes = require('./routes/users');
+const mediaRoutes = require('./routes/media');
+const analyticsRoutes = require('./routes/analytics');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Ensure uploads directory exists
+ensureUploadsDir();
+
+// Security middleware
+app.use(securityHeaders);
+app.use(cspHeaders);
 app.use(helmet());
+app.use(xssProtection);
+app.use(hppProtection);
+app.use(mongoSanitizeProtection);
+
+// Rate limiting
+app.use('/api/auth', authLimiter);
+app.use('/api/', generalLimiter);
+
+// CORS configuration
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
 }));
+
+// Logging
 app.use(morgan('combined'));
+
+// Body parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -31,6 +66,11 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ielts-moc
 app.use('/api/auth', authRoutes);
 app.use('/api/tests', testRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/analytics', analyticsRoutes);
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
