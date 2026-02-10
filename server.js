@@ -47,7 +47,11 @@ app.use('/api/', generalLimiter);
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
-  : [process.env.CLIENT_URL || 'http://localhost:5173'];
+  : [
+      process.env.CLIENT_URL || 'http://localhost:5173',
+      'http://localhost:5174',  // Add support for Vite's alternative port
+      'http://localhost:5175'   // Add support for current Vite port
+    ];
 
 const corsOptions = {
   origin: allowedOrigins,

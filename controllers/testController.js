@@ -318,11 +318,14 @@ const submitTest = async (req, res) => {
         userAnswer: userAnswer || '',
         correctAnswer: question.correctAnswer,
         isCorrect,
-        options: question.options
+        options: question.options,
+        questionType: question.questionType
       });
     });
 
     const score = Math.round((correctAnswers / totalQuestions) * 100);
+    const bandScore = test.calculateBandScore(correctAnswers, totalQuestions);
+    const bandScoreDetails = test.getBandScoreDetails(correctAnswers, totalQuestions);
     
     // Calculate section score (for future multi-section tests)
     const section = test.section.toLowerCase();
@@ -333,6 +336,7 @@ const submitTest = async (req, res) => {
     user.testAttempts.push({
       testId: test._id,  // Use the test object's _id instead of the param
       score,
+      bandScore,
       sectionScores,
       answers: answerDetails,
       timeTaken: actualTimeTaken,
@@ -341,20 +345,26 @@ const submitTest = async (req, res) => {
 
     await user.save();
 
-    // Performance feedback
+    // Performance feedback based on band score
     let feedback = '';
-    if (score >= 80) {
-      feedback = 'Excellent performance! Keep up the great work.';
-    } else if (score >= 60) {
-      feedback = 'Good job! With more practice, you can achieve even better results.';
-    } else if (score >= 40) {
-      feedback = 'Fair attempt. Focus on improving your weaker areas.';
+    if (bandScore >= 8.0) {
+      feedback = 'Excellent performance! You have demonstrated expert level English proficiency.';
+    } else if (bandScore >= 7.0) {
+      feedback = 'Very good performance! You have strong command of the language with only minor inaccuracies.';
+    } else if (bandScore >= 6.0) {
+      feedback = 'Good performance! You have operational command of the language despite some inaccuracies.';
+    } else if (bandScore >= 5.0) {
+      feedback = 'Competent level. You can cope with overall meaning in most situations but need improvement.';
+    } else if (bandScore >= 4.0) {
+      feedback = 'Limited user level. Focus on building basic competence for familiar situations.';
     } else {
-      feedback = 'Keep practicing. Review the material and try again.';
+      feedback = 'Keep practicing. Review fundamental concepts and try again.';
     }
 
     return successResponse(res, {
       score,
+      bandScore,
+      bandScoreDetails,
       totalQuestions,
       correctAnswers,
       timeTaken: actualTimeTaken,

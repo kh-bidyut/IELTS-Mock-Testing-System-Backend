@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const User = require('./models/User');
 const Test = require('./models/Test');
+const ieltsSampleTests = require('./ielts-sample-tests');
 
 const connectDB = async () => {
   try {
