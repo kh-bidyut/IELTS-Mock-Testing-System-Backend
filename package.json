@@ -1,12 +1,26 @@
 {
   "name": "ielts-mock-testing-server",
   "version": "1.0.0",
-  "description": "Backend server for IELTS Mock Testing System",
+  "description": "Professional Backend Server for IELTS Mock Testing System",
   "main": "server.js",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "seed": "node seed.js"
+    "debug": "node --inspect server.js",
+    "seed": "node seed.js",
+    "migrate": "node migrate-structure.js",
+    "clean": "node -e \"require('fs').rmSync('uploads', { recursive: true, force: true }); console.log('Uploads directory cleaned')\"",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix",
+    "prettier": "prettier --write \"**/*.js\"",
+    "prettier:check": "prettier --check \"**/*.js\"",
+    "build": "echo \"No build required for Node.js application\"",
+    "health": "curl -s http://localhost:5000/api/health | jq"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -27,6 +41,27 @@
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
-  }
+    "nodemon": "^3.0.2",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1"
+  },
+  "keywords": [
+    "ielts",
+    "mock-test",
+    "education",
+    "language-assessment",
+    "nodejs",
+    "express",
+    "mongodb"
+  ],
+  "author": "IELTS Mock Testing Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/ielts-mock-testing.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/ielts-mock-testing/issues"
+  },
+  "homepage": "https://github.com/your-username/ielts-mock-testing#readme"
 }
